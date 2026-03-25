@@ -1,7 +1,7 @@
 """
-trainer/fixmatch.py
--------------------
-FixMatch semi-supervised training for the MAMP-MLP safety classifier.
+trainer/sure.py
+---------------
+SURE semi-supervised training for the MAMP-MLP safety classifier.
 
 Pipeline per epoch
 ------------------
@@ -48,7 +48,7 @@ class _PseudoLabeledDataset(Dataset):
     """Minimal Dataset wrapping (x_strong, pseudo_label, weight) triples.
 
     Items are returned as (x, y, info) to match the interface expected by
-    MAMP.trainer.train_epoch (which ignores info).  _fixmatch_epoch reads
+    MAMP.trainer.train_epoch (which ignores info).  _sure_epoch reads
     info["weight"] to scale the unsupervised BCE loss per sample.
     """
 
@@ -380,7 +380,7 @@ def build_pseudo_loader(
     )
 
 
-def _fixmatch_epoch(
+def _sure_epoch(
     model,
     labeled_loader: DataLoader,
     pseudo_loader,          # DataLoader | None
@@ -389,7 +389,7 @@ def _fixmatch_epoch(
     unsup_criterion,
     device,
 ) -> tuple[float, float]:
-    """One FixMatch epoch: combined sup + unsup loss in a single backward pass.
+    """One SURE epoch: combined sup + unsup loss in a single backward pass.
 
     Iterates over the longer of labeled_loader / pseudo_loader; the shorter
     one is cycled so every step sees both a labeled and a pseudo-labeled batch.
@@ -472,7 +472,7 @@ def _fixmatch_epoch(
     return avg_sup, avg_unsup
 
 
-def fixmatch_train(
+def sure_train(
     model,
     labeled_loader: DataLoader,
     unlabeled_dataset,
@@ -487,7 +487,7 @@ def fixmatch_train(
     scheduler=None,
     threshold_decision: float = 0.5,
     verbose: bool = True,
-    output_dir: str = "outputs/fixmatch",
+    output_dir: str = "outputs/sure",
     weak_aug=None,
     strong_aug=None,
     per_dataset_threshold: bool = False,
@@ -497,13 +497,13 @@ def fixmatch_train(
     no_dynamic_threshold: bool = False,
     max_pseudo_coverage: float = 0.8,
 ) -> list[dict]:
-    """Full FixMatch training loop with per-epoch validation and checkpointing.
+    """Full SURE training loop with per-epoch validation and checkpointing.
 
     Each epoch:
       1. Generate pseudo-labels from unlabeled data (generate_pseudo_labels).
-      2. Combined epoch – _fixmatch_epoch() pairs each labeled mini-batch with
+      2. Combined epoch – _sure_epoch() pairs each labeled mini-batch with
          a pseudo-labeled mini-batch and sums sup_loss + λ·unsup_loss before
-         a single backward pass (canonical FixMatch).
+         a single backward pass (canonical SURE).
          Unsupervised term is skipped when no pseudo-labeled samples exist.
       3. evaluate() on val_loader; save best checkpoint by val accuracy.
 
@@ -537,7 +537,7 @@ def fixmatch_train(
                             are weighted uniformly (weight = 1).
         no_dynamic_threshold: If True, disable FlexMatch curriculum and use
                             the fixed `threshold` value for both tau_pos and
-                            tau_neg every epoch (plain FixMatch behaviour).
+                            tau_neg every epoch (plain SURE behaviour).
                             Also disables per_dataset_threshold.
                             Default False (FlexMatch enabled).
 
@@ -586,7 +586,7 @@ def fixmatch_train(
 
         # ── Compute per-class thresholds ──────────────────────────────────
         if no_dynamic_threshold:
-            # Plain FixMatch: fixed threshold every epoch.
+            # Plain SURE: fixed threshold every epoch.
             tau_pos = tau_neg = threshold
             ds_thresholds = None
         else:
@@ -661,9 +661,9 @@ def fixmatch_train(
 
         # ── Steps 2 & 3: combined supervised + unsupervised epoch ────────
         # Both losses are summed before backward so a single gradient update
-        # is applied per mini-batch (canonical FixMatch behaviour).
+        # is applied per mini-batch (canonical SURE behaviour).
         pseudo_loader = build_pseudo_loader(pseudo_samples, batch_size) if pseudo_samples else None
-        sup_loss, unsup_loss = _fixmatch_epoch(
+        sup_loss, unsup_loss = _sure_epoch(
             model, labeled_loader, pseudo_loader,
             optimizer, sup_criterion, unsup_criterion, device,
         )

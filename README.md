@@ -16,10 +16,10 @@ python inference.py --model_name llama3 -m "save hidden states"
 
 Hidden states are saved to `outputs/hidden_states/llama3/`.
 
-## Step 2: Train (FixMatch, multi-seed)
+## Step 2: Train (SURE, multi-seed)
 
 ```bash
-python train_fixmatch_multiseed.py \
+python train_sure_multiseed.py \
   -m llama3 \
   --layer 17 \
   --labeled_train_size 80 \
@@ -29,7 +29,7 @@ python train_fixmatch_multiseed.py \
   --warmup_epochs 20
 ```
 
-Results are saved to `outputs/fixmatch_multiseed/`.
+Results are saved to `outputs/sure_multiseed/`.
 
 ## Key Arguments
 
@@ -39,21 +39,21 @@ Results are saved to `outputs/fixmatch_multiseed/`.
 | `--layer` | `17` | Transformer layer for hidden states |
 | `--labeled_train_size` | `80` | Number of labeled training samples |
 | `--per_dataset_threshold` | `False` | Enable per-dataset adaptive thresholds |
-| `--min_pseudo_tau` | `0.8` | Floor for FlexMatch thresholds |
+| `--min_pseudo_tau` | `0.8` | Floor for dynamic thresholds |
 | `--threshold` | `0.95` | Base confidence threshold for pseudo-labels |
-| `--epochs` | `15` | FixMatch training epochs |
+| `--epochs` | `15` | SURE training epochs |
 | `--warmup_epochs` | `20` | Supervised warmup epochs |
 
 ## Project Structure
 
 ```
 SURE/
-├── train_fixmatch_multiseed.py   # Main entry: multi-seed training
+├── train_sure_multiseed.py      # Main entry: multi-seed training
 ├── inference.py                  # Hidden state extraction & LLM inference
 ├── MAMP/
 │   ├── model.py                  # MLP classifier
 │   ├── trainer.py                # Train/evaluate/predict
-│   ├── fixmatch.py               # FixMatch + FlexMatch training loop
+│   ├── sure.py                   # SURE semi-supervised training loop
 │   └── dataset.py                # HiddenStateDataset
 ├── dataset/
 │   ├── main.py                   # SafetyDataset loader

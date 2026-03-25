@@ -1,4 +1,4 @@
-"""Run train_fixmatch pipeline over 5 seeds and report mean ± std."""
+"""Run SURE training pipeline over multiple seeds and report mean ± std."""
 import argparse
 import json
 import os
@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from dataset.main import SafetyDataset, _MODEL_TEMPLATE_MAP
 from MAMP import MAMP_MLP, HiddenStateDataset, predict, train
-from MAMP.fixmatch import fixmatch_train
+from MAMP.sure import sure_train
 from utils.augmentations import weak_aug, strong_aug
 from utils.utils import args_to_str, parse_size_list
 from utils.summary import summarize_file, summarize_files, summarize_latex, _DATASET_ORDER, _harmonic_mean
@@ -29,7 +29,7 @@ def set_random_seed(seed):
 
 
 def run_single_seed(args, seed):
-    """Run the full fixmatch pipeline for one seed. Returns val predictions list."""
+    """Run the full SURE pipeline for one seed. Returns val predictions list."""
     set_random_seed(seed)
 
     labeled_size = parse_size_list(args.labeled_size)
@@ -101,12 +101,12 @@ def run_single_seed(args, seed):
     model.load_state_dict(torch.load(warmup_ckpt, map_location=device))
     print(f"[Seed {seed}] Loaded warm-up checkpoint")
 
-    # ── FixMatch ─────────────────────────────────────────────────────────
+    # ── SURE ──────────────────────────────────────────────────────────────
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr * 0.1, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     run_name = args_to_str(args)
-    fixmatch_train(
+    sure_train(
         model=model,
         labeled_loader=train_loader,
         unlabeled_dataset=unlabeled_dataset,
@@ -343,9 +343,9 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.3)
     parser.add_argument("--seed", type=int, default=42,
                         help="(Unused, seeds are fixed to SEEDS list)")
-    parser.add_argument("--output_dir", type=str, default="outputs/fixmatch_multiseed")
+    parser.add_argument("--output_dir", type=str, default="outputs/sure_multiseed")
     parser.add_argument("--labeled_train_size", "-ls", type=int, default=80)
-    # FixMatch-specific
+    # SURE-specific
     parser.add_argument("--threshold", type=float, default=0.95)
     parser.add_argument("--lambda_u", type=float, default=1)
     parser.add_argument("--warmup_epochs", type=int, default=20)
